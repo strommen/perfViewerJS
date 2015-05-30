@@ -1,10 +1,6 @@
 // perf-view.js - Copyright (c) 2015 - Joseph Strommen - MIT License
 
 (function perfView() {
-	if (window.perfView) {
-		return;
-	}
-	
 	if (!window.performance || !window.performance.timing) {
 		return;
 	}
@@ -15,6 +11,12 @@
 		containerId: 'perf-view',
 		useDefaultCss: true
 	};
+	if (window.perfView && window.perfView.options) {
+		for (var key in window.perfView.options) {
+			console.log(key);
+			options[key] = window.perfView.options[key];
+		}
+	}
 	
 	var loadTime = navTiming.loadEventEnd - navTiming.navigationStart;
 
@@ -30,6 +32,7 @@
 			'	top: 0;',
 			'	z-index: 10000;',
 			'	font-family: sans-serif;',
+			'	line-height: 1.2;',
 			'}',
 			'.perf-view-message {',
 			'	display: block;',
@@ -60,11 +63,14 @@
 			'	position: relative;',
 			'}',
 			'.perf-view-gridline {',
-			'	border-right: 1px solid gray;',
+			'	border-right: 1px solid rgba(0,0,0,0.3);',
 			'	position: absolute;',
 			'	top: 0;',
 			'	left: 0;',
 			'	height: 100%;',
+			'}',
+			'.perf-view-gridline-event {',
+			'	border-color: blue;',
 			'}',
 			'.perf-view-gridline-label {',
 			'	position: absolute;',
@@ -72,33 +78,58 @@
 			'	font-size: 10px;',
 			'	text-align: center;',
 			'}',
+			'.perf-view-gridline-event-label {',
+			// TODO rotate the text
+			'	color: blue;',
+			'}',
 			'.perf-view-row {',
 			'	border-bottom: 1px solid gray;',
 			'	padding: 0 1px;',
 			'	position: relative;',
 			'}',
+			'.perf-view-row:nth-child(2n+1) {',
+			'	background: rgba(0, 0, 0, 0.1);',
+			'}',
 			'.perf-view-bar {',
 			'	height: 12px;',
 			'	display: inline-block;',			
 			'	z-index: -1;',
+			'	box-sizing: border-box;',
+			'	background: #05F;',
+			'	margin-top: 1px;',
 			'}',
 			'.perf-view-bar-name {',
 			'	position: absolute;',
-			'	top: 2px;',
+			'	top: 3px;',
 			'	font-size: 12px;',
 			'	line-height: 1;',
+			'	left: 3px;',
+			'	color: #049;',
+			'}',
+			'.perf-view-bar-type-js {',
+			'	background: darkgreen;',
+			'}',
+			'.perf-view-bar-type-css {',
+			'	background: purple;',
+			'}',
+			'.perf-view-bar-type-jpeg, .perf-view-bar-type-jpg, .perf-view-bar-type-gif, .perf-view-bar-type-png {',
+			'	background: #4f0;',
+			'}',
+			'.perf-view-bar-waiting {',
+			'	visibility: hidden;',
 			'}',
 			'.perf-view-bar-latency {',
-			'	background: lightblue;',
+			'	opacity: 0.2;',
 			'}',
 			'.perf-view-bar-downloading {',
-			'	background: blue;',
+			'	opacity: 0.5;',
 			'}',
 			''
 		].join('\r\n');
 		var style = document.createElement("style");
 		style.innerText = css;
 		document.head.appendChild(style);
+		// TODO adding the CSS doesn't seem to work in IE or Firefox
 	}
 	
 	var container = document.getElementById(options.containerId);
@@ -106,6 +137,7 @@
 		container = document.createElement('div');
 		container.id = options.containerId;
 		document.body.appendChild(container);
+		// TODO move to iframe
 	}
 	if (loadTime > options.errorThreshold) {
 		container.className += " perf-view-error";
@@ -140,30 +172,30 @@
 		var chartArea = document.createElement("div");
 		chartArea.className = "perf-view-chart-area";
 		
+		// Min of 4 gridlines.
 		var gridlineIncrement = 100;
-		if (lastResponseEnd > 5000) {
-			gridlineIncrement = 1000;
-		} else if (lastResponseEnd > 2000) {
-			gridlineIncrement = 250;
+		var gridlineOptions = [2000, 1000, 500, 250, 100];
+		for (var i = 0; i < gridlineOptions.length; i++) {
+			if (gridlineOptions[i] * 4 < lastResponseEnd) {
+				gridlineIncrement = gridlineOptions[i];
+				break;
+			}
 		}
 		
 		var gridlineValue = gridlineIncrement;
 		while (gridlineValue < lastResponseEnd) {
-			var gridlineRatio = gridlineValue / lastResponseEnd;
-			var gridline = document.createElement("div");
-			gridline.className = "perf-view-gridline";
-			gridline.style.cssText = ['width: ', 100 * gridlineRatio, '%;'].join('');
-			chartArea.appendChild(gridline);
-
-			var labelText = formatTime(gridlineValue);
-			var gridlineLabel = document.createElement("span");
-			gridlineLabel.className = "perf-view-gridline-label";
-			gridlineLabel.innerText = labelText;
-			gridlineLabel.style.cssText = ['width: ', 200 * gridlineRatio, '%;'].join('');
-			chartArea.appendChild(gridlineLabel);
+			addGridlineAndLabel(chartArea, gridlineValue, lastResponseEnd);
 			
 			gridlineValue += gridlineIncrement;
 		}
+		
+		var domContentLoaded = navTiming.domContentLoadedEventStart - navTiming.navigationStart;
+		addGridlineAndLabel(chartArea, domContentLoaded, lastResponseEnd, "DOMContentLoaded");
+
+		var loadEvent = navTiming.loadEventStart - navTiming.navigationStart;
+		addGridlineAndLabel(chartArea, loadEvent, lastResponseEnd, "window.onload");
+		
+		// TODO show user timings
 		
 		var htmlRow = createRowElement(document.location.href, 0, (navTiming.responseStart - navTiming.navigationStart), (navTiming.responseEnd - navTiming.navigationStart), lastResponseEnd);
 		chartArea.appendChild(htmlRow);
@@ -178,7 +210,41 @@
 	}
 	
 	function formatTime(val) {
-		return (val > 1000) ? (val / 1000) + 's' : val + 'ms';
+		// TODO round decimals
+		return (val >= 1000) ? (val / 1000) + 's' : val + 'ms';
+	}
+
+	function addGridlineAndLabel(chartArea, gridlineValue, lastResponseEnd, eventName) {
+		var gridline = createGridline(gridlineValue, lastResponseEnd);
+		if (eventName) {
+			gridline.className += " perf-view-gridline-event";
+		}
+		chartArea.appendChild(gridline);
+
+		var domContentLoadedLabel = createGridlineLabel(gridlineValue, lastResponseEnd);
+		if (eventName) {
+			domContentLoadedLabel.innerText = eventName;
+			domContentLoadedLabel.className += " perf-view-gridline-event-label";
+		}
+		chartArea.appendChild(domContentLoadedLabel);
+	}
+	
+	function createGridline(gridlineValue, lastResponseEnd) {
+		var gridlineRatio = gridlineValue / lastResponseEnd;
+		var gridline = document.createElement("div");
+		gridline.className = "perf-view-gridline";
+		gridline.style.cssText = ['width: ', 100 * gridlineRatio, '%;'].join('');
+		return gridline;
+	}
+	
+	function createGridlineLabel(gridlineValue, lastResponseEnd) {
+		var gridlineRatio = gridlineValue / lastResponseEnd;
+		var labelText = formatTime(gridlineValue);
+		var gridlineLabel = document.createElement("span");
+		gridlineLabel.className = "perf-view-gridline-label";
+		gridlineLabel.innerText = labelText;
+		gridlineLabel.style.cssText = ['width: ', 200 * gridlineRatio, '%;'].join('');
+		return gridlineLabel;
 	}
 	
 	function createRowElement(href, requestStart, responseStart, responseEnd, totalEnd) {
@@ -192,6 +258,12 @@
 			name = name.substring(0, query);
 		}
 
+		var fileType;
+		var lastDot = name.lastIndexOf('.');
+		if (lastDot >= 0) {
+			fileType = name.substring(lastDot + 1);
+		}
+		
 		var waitingRatio = requestStart / totalEnd;
 		var latencyValue = (responseStart - requestStart);
 		var latencyRatio = latencyValue / totalEnd;
@@ -200,14 +272,8 @@
 		
 		var row = document.createElement("div");
 		row.className = "perf-view-row";
+		// TODO can we add resource size to this?
 		row.title = ['waiting: ', formatTime(requestStart), ', latency: ', formatTime(latencyValue), ', download: ', formatTime(downloadingValue)].join('');
-		
-		var link = document.createElement("a");
-		link.href = href;
-		link.target = '_blank';
-		link.className = "perf-view-bar-name";
-		link.innerText = name;
-		row.appendChild(link);
 		
 		var waiting = document.createElement("span");
 		waiting.className = "perf-view-bar perf-view-bar-waiting";
@@ -216,13 +282,27 @@
 
 		var latency = document.createElement("span");
 		latency.className = "perf-view-bar perf-view-bar-latency";
+		if (fileType) {
+			latency.className += " perf-view-bar-type-" + fileType;
+		}
 		latency.style.cssText = ['width: ', 100 * latencyRatio, '%;'].join('');
 		row.appendChild(latency);
 		
 		var downloading = document.createElement("span");
 		downloading.className = "perf-view-bar perf-view-bar-downloading"
+		if (fileType) {
+			downloading.className += " perf-view-bar-type-" + fileType;
+		}
 		downloading.style.cssText = ['width: ', 100 * downloadingRatio, '%;'].join('');
 		row.appendChild(downloading);
+		
+		var link = document.createElement("a");
+		link.href = href;
+		link.target = '_blank';
+		link.className = "perf-view-bar-name";
+		link.innerText = name;
+		row.appendChild(link);
+
 		return row;
 	}
 	
