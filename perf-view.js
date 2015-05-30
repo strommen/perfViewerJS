@@ -25,10 +25,15 @@
 			'	color: #999;',
 			'	padding: 15px 30px;',
 			'	position: absolute;',
-			
+			'	box-sizing: border-box;',
+			'	width: 100%;',
 			'	top: 0;',
 			'	z-index: 10000;',
 			'	font-family: sans-serif;',
+			'}',
+			'.perf-view-message {',
+			'	display: block;',
+			'	text-align: center;',
 			'}',
 			'#perf-view a {',
 			'	color: #7af;',
@@ -106,7 +111,7 @@
 		container.className += " perf-view-error";
 	}
 	container.innerHTML = [
-		'<span>',
+		'<span class="perf-view-message">',
 			'This page loaded in ',
 			'<span class="perf-view-load-time">',
 				loadTime, 
