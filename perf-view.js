@@ -132,9 +132,13 @@ var perfView = function() {
 				''
 			].join('\r\n');
 			var style = document.createElement("style");
-			style.innerText = css;
+			style.type = "text/css";
+			if (style.styleSheet) {
+				style.styleSheet.cssText = css;
+			} else {
+				style.innerHTML = css;
+			}
 			document.head.appendChild(style);
-			// TODO adding the CSS doesn't seem to work in IE or Firefox
 			// TODO figure out a build process to just add the CSS to the JS
 		}
 		
@@ -222,8 +226,7 @@ var perfView = function() {
 	}
 	
 	function formatTime(val) {
-		// TODO round decimals
-		return (val >= 1000) ? (val / 1000) + 's' : val + 'ms';
+		return (val >= 1000) ? (val / 1000).toFixed(1) + 's' : val.toFixed() + 'ms';
 	}
 
 	function addGridlineAndLabel(chartArea, gridlineValue, lastResponseEnd, eventName) {
@@ -235,7 +238,7 @@ var perfView = function() {
 
 		var domContentLoadedLabel = createGridlineLabel(gridlineValue, lastResponseEnd);
 		if (eventName) {
-			domContentLoadedLabel.innerText = eventName;
+			domContentLoadedLabel.textContent = eventName;
 			domContentLoadedLabel.className += " perf-view-gridline-event-label";
 		}
 		chartArea.appendChild(domContentLoadedLabel);
@@ -254,7 +257,7 @@ var perfView = function() {
 		var labelText = formatTime(gridlineValue);
 		var gridlineLabel = document.createElement("span");
 		gridlineLabel.className = "perf-view-gridline-label";
-		gridlineLabel.innerText = labelText;
+		gridlineLabel.textContent = labelText;
 		gridlineLabel.style.cssText = ['width: ', 200 * gridlineRatio, '%;'].join('');
 		return gridlineLabel;
 	}
@@ -312,7 +315,7 @@ var perfView = function() {
 		link.href = href;
 		link.target = '_blank';
 		link.className = "perf-view-bar-name";
-		link.innerText = name;
+		link.textContent = name;
 		row.appendChild(link);
 
 		return row;
