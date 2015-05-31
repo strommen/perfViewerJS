@@ -130,6 +130,7 @@
 		style.innerText = css;
 		document.head.appendChild(style);
 		// TODO adding the CSS doesn't seem to work in IE or Firefox
+		// TODO figure out a build process to just add the CSS to the JS
 	}
 	
 	var container = document.getElementById(options.containerId);
