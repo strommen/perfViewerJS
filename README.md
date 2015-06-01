@@ -36,7 +36,7 @@ If you include the CSS in an external file, you'll want to make sure to set `use
 ## Bookmarklet
 To see perfViewer.js on any page, use the following bookmarklet. (This may not always work depending on the page's content security policy).
 
-    javascript:(function(){var el=document.createElement('script');el.type='text/javascript';el.src='http://www.joestrommen.com/public/perfViewer.js';document.getElementsByTagName('body')[0].appendChild(el);})();
+    javascript:(function(){var el=document.createElement('script');el.type='text/javascript';el.src='https://raw.githubusercontent.com/strommen/perfViewerJS/master/perfViewer.js';document.getElementsByTagName('body')[0].appendChild(el);})();
 
 When you activate the bookmarklet, the script will be added to the page.  The script will detect that the page has already finished loading, so it will call `init()` on itself.
 
